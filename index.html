@@ -112,7 +112,7 @@ input.in.md{height:54px;font-family:Kanit,sans-serif;font-weight:500;font-size:2
     </button>
   </nav>
   <div id="sheetHost"></div>
-  <div id="sync" style="position:absolute;top:calc(4px + env(safe-area-inset-top,0px));right:12px;font-size:10.5px;color:var(--dim);pointer-events:none;z-index:2"></div>
+  <div id="sync" style="position:absolute;top:calc(4px + env(safe-area-inset-top,0px));right:12px;left:12px;text-align:right;font-size:10.5px;color:var(--dim);pointer-events:none;z-index:2"></div>
 </div>
 
 <script>
@@ -126,7 +126,7 @@ const CONFIG = {
   storageKey: 'parking-lot-v1',
   // วาง URL ของ Apps Script (ลงท้ายด้วย /exec) และรหัสเดียวกับใน Code.gs
   // ถ้าเว้นว่าง แอปจะเก็บข้อมูลในเครื่องนี้เครื่องเดียว
-  apiUrl: 'https://script.google.com/macros/s/AKfycbyU6rfgSBDaih931u2El6F0URfPsGvU4hQlZ8O0DEcQaWy2K6DELK74nhGqTXpkIQIE/exec',
+  apiUrl: 'https://script.google.com/macros/s/AKfycbzg1RvDatrcm7w82JX4eUZMo50PQS-LIwJoL092dWaC9FASVlLyNT0dHssEdXZvSTis/exec',
   apiKey: 'PlugParking0550'
 };
 
@@ -167,12 +167,19 @@ const Remote = {
     return j;
   }
 };
-function setStatus(kind) {
+function whyFail(e) {
+  const m = String((e && e.message) || e);
+  if (m.indexOf('bad key') >= 0) return 'รหัส (apiKey) ไม่ตรงกับ Code.gs';
+  if (m.indexOf('bad slot') >= 0) return 'ช่องไม่ถูกต้อง';
+  if (e instanceof SyntaxError) return 'URL ไม่ใช่เว็บแอป (ต้องลงท้าย /exec)';
+  return 'เข้า URL ไม่ได้ เช็ก Deploy เป็น Anyone และ URL';
+}
+function setStatus(kind, why) {
   const el = document.getElementById('sync');
   if (!el) return;
   const map = { ok: ['ซิงก์แล้ว', 'var(--green)'], saving: ['กำลังบันทึก…', 'var(--amber)'], err: ['เชื่อมต่อไม่ได้ ลองใหม่', 'var(--red)'], local: ['เก็บในเครื่องนี้เท่านั้น', 'var(--dim)'] };
   const m = map[kind];
-  el.textContent = '● ' + m[0];
+  el.textContent = '● ' + m[0] + (why ? ' · ' + why : '');
   el.style.color = m[1];
 }
 function adopt(remote) {
@@ -189,13 +196,13 @@ function sync(op) {
   Remote.chain = Remote.chain.then(() => Remote.post(op)).then((j) => {
     Remote.pending--;
     if (!Remote.pending) { adopt(j); setStatus('ok'); if (!host.innerHTML) render(); }
-  }).catch(() => {
+  }).catch((e) => {
     Remote.pending--;
-    setStatus('err');
+    setStatus('err', whyFail(e));
     refresh();
   });
 }
-async function refresh() {
+async function refresh(keepErr) {
   if (!Remote.on || Remote.pending) return;
   try {
     const j = await Remote.get();
@@ -204,7 +211,7 @@ async function refresh() {
     adopt(j);
     setStatus('ok');
     if (changed && !host.innerHTML) render();
-  } catch (e) { setStatus('err'); }
+  } catch (e) { setStatus('err', whyFail(e)); }
 }
 
 /* ---------- ตัวช่วย ---------- */
@@ -355,13 +362,16 @@ function paySheet(n, rec) {
   );
 }
 function savePay(n) {
-  const d = parseInt(document.getElementById('pDay').value, 10);
-  const a = parseInt(document.getElementById('pAmt').value.replace(/[^0-9]/g, ''), 10);
+  const num = (v) => parseInt(String(v).replace(/[๐-๙]/g, (c) => c.charCodeAt(0) - 3664).replace(/[^0-9]/g, ''), 10);
+  const dayEl = document.getElementById('pDay'), amtEl = document.getElementById('pAmt');
   const err = document.getElementById('pErr');
-  if (!(d >= 1 && d <= 31)) { err.textContent = 'ใส่วันที่ 1 ถึง 31'; err.hidden = false; return; }
-  if (!(a > 0)) { err.textContent = 'ใส่จำนวนเงินที่จ่าย'; err.hidden = false; return; }
+  const d = num(dayEl.value), a = num(amtEl.value);
+  dayEl.style.borderColor = amtEl.style.borderColor = '';
+  const fail = (el, msg) => { el.style.borderColor = 'var(--red)'; err.textContent = msg; err.hidden = false; err.style.color = 'var(--red)'; err.style.fontWeight = '600'; el.focus(); };
+  if (!(d >= 1 && d <= 31)) return fail(dayEl, 'ยังไม่ได้ใส่วันที่จ่าย (ใส่เลข 1 ถึง 31)');
+  if (!(a > 0)) return fail(amtEl, 'ยังไม่ได้ใส่จำนวนเงิน (ใส่เป็นตัวเลข เช่น 1500)');
   data.pays[key(n, ui.y, ui.m)] = { d, a };
-  sync({ op: 'pay', key: key(n, ui.y, ui.m), rec: { d, a } });
+  sync({ op: 'pay', pk: key(n, ui.y, ui.m), rec: { d, a } });
   closeSheet(); render();
 }
 
@@ -389,7 +399,7 @@ document.getElementById('app').addEventListener('click', (e) => {
     case 'saveEdit': saveEdit(n, false); break;
     case 'clearSlot': saveEdit(n, true); break;
     case 'savePay': savePay(n); break;
-    case 'cancelPay': delete data.pays[key(n, ui.y, ui.m)]; sync({ op: 'pay', key: key(n, ui.y, ui.m), rec: null }); closeSheet(); render(); break;
+    case 'cancelPay': delete data.pays[key(n, ui.y, ui.m)]; sync({ op: 'pay', pk: key(n, ui.y, ui.m), rec: null }); closeSheet(); render(); break;
   }
 });
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeSheet(); });
