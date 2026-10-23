@@ -112,6 +112,7 @@ input.in.md{height:54px;font-family:Kanit,sans-serif;font-weight:500;font-size:2
     </button>
   </nav>
   <div id="sheetHost"></div>
+  <div id="sync" style="position:absolute;top:calc(4px + env(safe-area-inset-top,0px));right:12px;font-size:10.5px;color:var(--dim);pointer-events:none;z-index:2"></div>
 </div>
 
 <script>
@@ -122,7 +123,11 @@ input.in.md{height:54px;font-family:Kanit,sans-serif;font-weight:500;font-size:2
 const CONFIG = {
   slots: 16,            // จำนวนช่องทั้งหมดในผัง
   blocked: [15],        // ช่องที่จอดไม่ได้
-  storageKey: 'parking-lot-v1'
+  storageKey: 'parking-lot-v1',
+  // วาง URL ของ Apps Script (ลงท้ายด้วย /exec) และรหัสเดียวกับใน Code.gs
+  // ถ้าเว้นว่าง แอปจะเก็บข้อมูลในเครื่องนี้เครื่องเดียว
+  apiUrl: 'https://script.google.com/macros/s/AKfycbyU6rfgSBDaih931u2El6F0URfPsGvU4hQlZ8O0DEcQaWy2K6DELK74nhGqTXpkIQIE/exec',
+  apiKey: 'PlugParking0550'
 };
 
 /* ---------- ที่เก็บข้อมูล (เปลี่ยนตรงนี้ถ้าจะย้ายไป Google Sheet / Firebase) ---------- */
@@ -143,6 +148,64 @@ const blank = () => ({ plates: Array(CONFIG.slots).fill(''), pays: {}, info: {} 
 let data = Object.assign(blank(), Store.load() || {});
 if (!Array.isArray(data.plates) || data.plates.length !== CONFIG.slots) data.plates = Array(CONFIG.slots).fill('');
 const persist = () => Store.save(data);
+
+/* ---------- ซิงก์กับ Google Sheet ---------- */
+const Remote = {
+  on: !!CONFIG.apiUrl,
+  pending: 0,
+  chain: Promise.resolve(),
+  async get() {
+    const r = await fetch(CONFIG.apiUrl + '?key=' + encodeURIComponent(CONFIG.apiKey));
+    const j = await r.json();
+    if (j.error) throw new Error(j.error);
+    return j;
+  },
+  async post(op) {
+    const r = await fetch(CONFIG.apiUrl, { method: 'POST', body: JSON.stringify(Object.assign({ key: CONFIG.apiKey }, op)) });
+    const j = await r.json();
+    if (j.error) throw new Error(j.error);
+    return j;
+  }
+};
+function setStatus(kind) {
+  const el = document.getElementById('sync');
+  if (!el) return;
+  const map = { ok: ['ซิงก์แล้ว', 'var(--green)'], saving: ['กำลังบันทึก…', 'var(--amber)'], err: ['เชื่อมต่อไม่ได้ ลองใหม่', 'var(--red)'], local: ['เก็บในเครื่องนี้เท่านั้น', 'var(--dim)'] };
+  const m = map[kind];
+  el.textContent = '● ' + m[0];
+  el.style.color = m[1];
+}
+function adopt(remote) {
+  data = Object.assign(blank(), remote);
+  if (!Array.isArray(data.plates) || data.plates.length !== CONFIG.slots) data.plates = Array(CONFIG.slots).fill('');
+  persist();
+}
+// ส่งคำสั่งแก้ข้อมูลขึ้นชีตทีละคำสั่งตามลำดับ แล้วใช้ข้อมูลที่ชีตตอบกลับเป็นของจริง
+function sync(op) {
+  persist();
+  if (!Remote.on) return;
+  Remote.pending++;
+  setStatus('saving');
+  Remote.chain = Remote.chain.then(() => Remote.post(op)).then((j) => {
+    Remote.pending--;
+    if (!Remote.pending) { adopt(j); setStatus('ok'); if (!host.innerHTML) render(); }
+  }).catch(() => {
+    Remote.pending--;
+    setStatus('err');
+    refresh();
+  });
+}
+async function refresh() {
+  if (!Remote.on || Remote.pending) return;
+  try {
+    const j = await Remote.get();
+    if (Remote.pending) return;
+    const changed = JSON.stringify(j) !== JSON.stringify({ plates: data.plates, pays: data.pays, info: data.info });
+    adopt(j);
+    setStatus('ok');
+    if (changed && !host.innerHTML) render();
+  } catch (e) { setStatus('err'); }
+}
 
 /* ---------- ตัวช่วย ---------- */
 const MN = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
@@ -260,7 +323,8 @@ function saveEdit(n, clear) {
   if (!val || (changed && old && same) || (!name && !phone && !note)) delete data.info[n];
   else data.info[n] = { name, phone, note };
   data.plates[n - 1] = val;
-  persist(); closeSheet(); render();
+  sync({ op: 'slot', n, plate: val, info: data.info[n] || null, clearPays: changed });
+  closeSheet(); render();
 }
 
 function paySheet(n, rec) {
@@ -297,7 +361,8 @@ function savePay(n) {
   if (!(d >= 1 && d <= 31)) { err.textContent = 'ใส่วันที่ 1 ถึง 31'; err.hidden = false; return; }
   if (!(a > 0)) { err.textContent = 'ใส่จำนวนเงินที่จ่าย'; err.hidden = false; return; }
   data.pays[key(n, ui.y, ui.m)] = { d, a };
-  persist(); closeSheet(); render();
+  sync({ op: 'pay', key: key(n, ui.y, ui.m), rec: { d, a } });
+  closeSheet(); render();
 }
 
 /* ---------- วาดหน้า + จัดการการกด ---------- */
@@ -324,11 +389,19 @@ document.getElementById('app').addEventListener('click', (e) => {
     case 'saveEdit': saveEdit(n, false); break;
     case 'clearSlot': saveEdit(n, true); break;
     case 'savePay': savePay(n); break;
-    case 'cancelPay': delete data.pays[key(n, ui.y, ui.m)]; persist(); closeSheet(); render(); break;
+    case 'cancelPay': delete data.pays[key(n, ui.y, ui.m)]; sync({ op: 'pay', key: key(n, ui.y, ui.m), rec: null }); closeSheet(); render(); break;
   }
 });
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeSheet(); });
 render();
+if (Remote.on) {
+  setStatus('saving');
+  refresh();
+  setInterval(refresh, 15000);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) refresh(); });
+} else {
+  setStatus('local');
+}
 </script>
 </body>
 </html>
