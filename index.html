@@ -1,0 +1,334 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#15181c">
+<title>ลานจอดรถ</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600&family=Kanit:wght@500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#15181c; --panel:#1f2328; --tile:#181b1f; --sheet:#23272c; --line:#2d3238; --edge:#4a5058;
+  --fg:#e9ecef; --mute:#9aa3ad; --dim:#6f7984; --amber:#f2b705; --green:#5ad39a; --red:#ff8a80; --plate:#f1f3f5; --plate-fg:#111418;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;background:#0e1013}
+body{font-family:'IBM Plex Sans Thai',system-ui,sans-serif;color:var(--fg)}
+button,input{font-family:inherit}
+button{cursor:pointer}
+input:focus-visible,button:focus-visible,a:focus-visible{outline:2px solid var(--amber);outline-offset:2px}
+.app{position:relative;max-width:480px;height:100vh;height:100dvh;margin:0 auto;background:var(--bg);display:flex;flex-direction:column;overflow:hidden}
+.view{flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column}
+.k{font-family:Kanit,sans-serif}
+.head{display:flex;justify-content:space-between;align-items:baseline;padding:calc(18px + env(safe-area-inset-top,0px)) 16px 12px;flex:none}
+.head h1{margin:0;font-size:24px;font-weight:600}
+.head .meta{font-size:14px;color:var(--mute)}
+.head .meta b{font-family:Kanit,sans-serif;font-weight:600;font-size:24px;color:var(--amber)}
+.card{margin:0 16px;background:var(--panel);border-radius:12px;padding:10px;display:flex;flex-direction:column;gap:3px;flex:none}
+.row2{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);column-gap:8px}
+.room{height:62px;border:2px solid var(--edge);border-radius:6px;background:#2a2f35;color:var(--mute);font-size:13px;display:flex;align-items:center;justify-content:center}
+.inner{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));column-gap:4px}
+.slot{width:100%;border:2px solid rgba(242,183,5,.5);border-radius:6px;background:var(--tile);color:inherit;text-align:left;padding:0 8px;display:flex;align-items:center;gap:8px;min-width:0}
+.slot.big{height:62px;padding:5px 6px;flex-direction:column;align-items:flex-start;justify-content:space-between;gap:0}
+.slot.row{height:38px}
+.slot .n{font-family:Kanit,sans-serif;font-weight:500;font-size:15px;color:var(--amber);line-height:1;min-width:20px}
+.slot.blocked{border-color:rgba(255,138,128,.35);background:repeating-linear-gradient(45deg,#181b1f 0 6px,#20242a 6px 12px);cursor:default}
+.slot.blocked .n{color:#7d858f}
+.plate{display:inline-block;background:var(--plate);color:var(--plate-fg);border-radius:4px;padding:2px 6px;font-family:Kanit,sans-serif;font-weight:500;font-size:12.5px;line-height:1.2;white-space:nowrap}
+.plate.warn{background:transparent;border:1.5px dashed var(--amber);color:var(--amber);padding:1px 6px}
+.chip{text-align:center;color:var(--amber);font-size:13px;background:rgba(242,183,5,.14);border-radius:4px;padding:2px 0}
+.chip.red{color:var(--red);background:rgba(255,138,128,.12)}
+.slot.row .chip{flex:1}
+.slot.big .chip{align-self:stretch}
+.lane{display:flex;flex-direction:column;align-items:center;justify-content:space-between;padding:8px 0 4px}
+.lane small{font-size:11.5px;color:var(--dim);letter-spacing:.08em}
+.lane i{flex:1;margin:8px 0;border-left:2px dashed #3a4047}
+.lane .up{color:var(--amber);font-size:22px;line-height:1}
+.lane small.in{color:var(--amber)}
+.legend{margin:12px 16px 16px;display:flex;gap:14px;font-size:12px;color:var(--mute);align-items:center;flex-wrap:wrap}
+.legend span{display:flex;align-items:center;gap:6px}
+.legend i{display:inline-block;width:16px;height:10px;border-radius:2px}
+.tabs{flex:none;display:grid;grid-template-columns:1fr 1fr;background:var(--panel);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom,0px)}
+.tabs button{height:68px;border:0;background:transparent;color:var(--dim);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;font-size:13px;font-weight:600}
+.tabs button.on{color:var(--amber)}
+.stepper{margin:0 16px;display:flex;align-items:center;background:var(--panel);border-radius:12px;overflow:hidden;flex:none}
+.stepper button{width:56px;height:46px;border:0;background:transparent;color:var(--amber);font-size:22px}
+.stepper button:disabled{color:#3a4047;cursor:default}
+.stepper div{flex:1;text-align:center;font-family:Kanit,sans-serif;font-weight:500;font-size:18px}
+.prog{margin:10px 16px 0;background:var(--panel);border-radius:12px;padding:12px 14px;flex:none}
+.prog .t{display:flex;justify-content:space-between;font-size:13.5px;margin-bottom:8px}
+.prog .bar{height:8px;border-radius:4px;background:var(--line);overflow:hidden}
+.prog .bar div{height:100%;background:var(--green);border-radius:4px}
+.list{padding:12px 16px 16px;display:flex;flex-direction:column;gap:6px;flex:1}
+.sec{font-size:13.5px;font-weight:600;padding:2px 2px}
+.prow{flex:none;height:50px;border:2px solid;border-radius:8px;background:var(--tile);color:inherit;padding:0 10px;display:flex;align-items:center;gap:10px;text-align:left;width:100%}
+.prow .n{font-family:Kanit,sans-serif;font-weight:500;font-size:16px;color:var(--amber);width:22px}
+.prow .pl{flex:1;min-width:0;display:flex}
+.prow .r{display:flex;flex-direction:column;align-items:flex-end;gap:1px}
+.prow .r1{font-family:Kanit,sans-serif;font-weight:500;font-size:15px;border-radius:5px;padding:1px 8px}
+.prow .r2{font-size:11.5px;color:var(--mute)}
+.note{font-size:14px;border-radius:10px;padding:14px;text-align:center}
+.empty{margin:36px 24px;text-align:center;color:var(--dim);font-size:14px;line-height:1.7}
+.ov{position:absolute;inset:0;background:rgba(0,0,0,.6);display:flex;flex-direction:column;justify-content:flex-end;z-index:5}
+.sheet{background:var(--sheet);border-radius:20px 20px 0 0;padding:14px 16px calc(24px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:12px;max-height:100%;overflow-y:auto}
+.grab{align-self:center;width:40px;height:4px;border-radius:2px;background:var(--edge);flex:none}
+.sh{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.sh h2{margin:0;font-size:22px;font-weight:600}
+.sh h2 span{color:var(--amber);font-family:Kanit,sans-serif}
+.x{border:0;background:transparent;color:var(--mute);font-size:15px;min-height:44px;padding:0 4px}
+label{font-size:12.5px;color:var(--mute)}
+.fld{display:flex;flex-direction:column;gap:6px;min-width:0}
+input.in{width:100%;height:48px;background:var(--bg);border:2px solid var(--edge);border-radius:10px;padding:0 12px;color:#f1f3f5;font-size:16px}
+input.in.lg{height:56px;font-family:Kanit,sans-serif;font-weight:500;font-size:26px;letter-spacing:.05em;padding:0 16px}
+input.in.md{height:54px;font-family:Kanit,sans-serif;font-weight:500;font-size:24px}
+.g2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px}
+.g2b{display:grid;grid-template-columns:104px minmax(0,1fr);gap:10px}
+.pri{height:54px;border:0;border-radius:12px;background:var(--amber);color:#1a1500;font-size:17px;font-weight:600;flex:none}
+.sec2{height:46px;border:1.5px solid var(--edge);border-radius:12px;background:transparent;color:#d6dbe0;font-size:14.5px;flex:none}
+.call{display:flex;align-items:center;justify-content:center;height:44px;border:1.5px solid var(--green);border-radius:12px;color:var(--green);font-size:15px;font-weight:600;text-decoration:none;flex:none}
+.warnbox{font-size:13px;color:var(--amber);background:rgba(242,183,5,.12);border-radius:8px;padding:8px 10px}
+.err{font-size:13px;color:var(--amber)}
+.contact{display:flex;align-items:center;gap:10px;font-size:14px;color:#d6dbe0;background:var(--bg);border-radius:10px;padding:8px 12px;flex-wrap:wrap}
+.contact a{color:var(--green);font-family:Kanit,sans-serif;font-weight:500;text-decoration:none}
+.hist{background:var(--bg);border-radius:12px;overflow:hidden}
+.hist .ht{padding:7px 12px;font-size:12px;letter-spacing:.06em;color:var(--mute);border-bottom:1px solid var(--line)}
+.hist .hr{display:flex;justify-content:space-between;align-items:center;padding:0 12px;height:32px;border-bottom:1px solid #22262b}
+.hist .hr span:first-child{font-family:Kanit,sans-serif;font-weight:500;font-size:14px;color:#d6dbe0}
+.hist .hr span:last-child{font-size:13.5px;font-weight:600}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+<div class="app" id="app">
+  <div class="view" id="view"></div>
+  <nav class="tabs" aria-label="เมนู">
+    <button type="button" id="tabLot" data-tab="lot">
+      <svg width="22" height="22" viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="6" height="16" rx="1.5"/><rect x="13" y="3" width="6" height="6" rx="1.5"/><rect x="13" y="13" width="6" height="6" rx="1.5"/></svg>ผังลาน
+    </button>
+    <button type="button" id="tabPay" data-tab="pay">
+      <svg width="22" height="22" viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="16" height="15" rx="2"/><path d="M3 9h16M7 2v4M15 2v4M8 14l2 2 4-4"/></svg>การจ่ายเงิน
+    </button>
+  </nav>
+  <div id="sheetHost"></div>
+</div>
+
+<script>
+/* ============================================================
+   ลานจอดรถ  ไฟล์เดียว ไม่มีข้อมูลเริ่มต้น
+   ตั้งค่าได้ที่ CONFIG ด้านล่าง
+   ============================================================ */
+const CONFIG = {
+  slots: 16,            // จำนวนช่องทั้งหมดในผัง
+  blocked: [15],        // ช่องที่จอดไม่ได้
+  storageKey: 'parking-lot-v1'
+};
+
+/* ---------- ที่เก็บข้อมูล (เปลี่ยนตรงนี้ถ้าจะย้ายไป Google Sheet / Firebase) ---------- */
+const Store = {
+  load() {
+    try {
+      const raw = localStorage.getItem(CONFIG.storageKey);
+      if (raw) return JSON.parse(raw);
+    } catch (e) {}
+    return null;
+  },
+  save(data) {
+    try { localStorage.setItem(CONFIG.storageKey, JSON.stringify(data)); } catch (e) {}
+  }
+};
+
+const blank = () => ({ plates: Array(CONFIG.slots).fill(''), pays: {}, info: {} });
+let data = Object.assign(blank(), Store.load() || {});
+if (!Array.isArray(data.plates) || data.plates.length !== CONFIG.slots) data.plates = Array(CONFIG.slots).fill('');
+const persist = () => Store.save(data);
+
+/* ---------- ตัวช่วย ---------- */
+const MN = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const fmt = (v) => String(v).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+const bad = (p) => !/[ก-ฮ]/.test(p) || (p.match(/[0-9]/g) || []).length < 4;
+const isBlocked = (n) => CONFIG.blocked.indexOf(n) >= 0;
+const key = (n, y, m) => n + '-' + y + '-' + m;
+const shift = (y, m, d) => { const t = y * 12 + (m - 1) + d; return { y: Math.floor(t / 12), m: (t % 12) + 1 }; };
+const label = (y, m) => MN[m - 1] + ' ' + (y + 543);
+const plateHtml = (p) => '<span class="plate' + (bad(p) ? ' warn' : '') + '">' + esc(p) + '</span>';
+const TOTAL = CONFIG.slots - CONFIG.blocked.length;
+
+const today = new Date();
+const NOW = { y: today.getFullYear(), m: today.getMonth() + 1, d: today.getDate() };
+const ui = { tab: 'lot', y: NOW.y, m: NOW.m };
+
+/* ---------- ผังลาน ---------- */
+function slotInner(n) {
+  const p = data.plates[n - 1];
+  if (isBlocked(n)) return '<span class="n">' + n + '</span><span class="chip red">จอดไม่ได้</span>';
+  return '<span class="n">' + n + '</span>' + (p ? plateHtml(p) : '<span class="chip">ว่าง +</span>');
+}
+function slotBtn(n, big) {
+  const cls = 'slot ' + (big ? 'big' : 'row') + (isBlocked(n) ? ' blocked' : '');
+  return '<button type="button" class="' + cls + '" data-act="edit" data-n="' + n + '" aria-label="ช่อง ' + n + '"' + (isBlocked(n) ? ' tabindex="-1"' : '') + '>' + slotInner(n) + '</button>';
+}
+function lotView() {
+  const count = data.plates.filter(Boolean).length;
+  let strip = '';
+  for (let n = 14; n >= 1; n--) strip += slotBtn(n, false);
+  return '<div class="head"><h1>ลานจอดรถ</h1><span class="meta"><b>' + count + '</b> / ' + TOTAL + ' ช่อง</span></div>' +
+    '<div class="card">' +
+      '<div class="row2"><div class="room">ห้องเล็ก</div><div class="inner">' + slotBtn(15, true) + slotBtn(16, true) + '</div></div>' +
+      '<div class="row2"><div style="display:flex;flex-direction:column;gap:3px">' + strip + '</div>' +
+      '<div class="lane"><small>ทางวิ่ง</small><i></i><span class="up">↑</span><small class="in">ทางเข้า</small></div></div>' +
+    '</div>' +
+    '<div class="legend"><span><i style="background:#f1f3f5"></i>มีรถ</span><span><i style="border:1.5px dashed var(--amber)"></i>ทะเบียนไม่ครบ</span><span><i style="background:rgba(242,183,5,.3)"></i>ว่าง</span><span><i style="background:rgba(255,138,128,.35)"></i>จอดไม่ได้</span></div>';
+}
+
+/* ---------- การจ่ายเงิน ---------- */
+function payRow(n, paid, rec) {
+  const p = data.plates[n - 1];
+  const line = paid ? 'rgba(90,211,154,.45)' : 'rgba(242,183,5,.5)';
+  const r1 = paid ? '<span class="r1" style="color:var(--green)">฿' + fmt(rec.a) + '</span>' : '<span class="r1" style="color:var(--amber);background:rgba(242,183,5,.14)">ลงจ่าย +</span>';
+  const r2 = paid ? '<span class="r2">จ่ายวันที่ ' + rec.d + ' ' + MN[ui.m - 1] + '</span>' : '';
+  return '<button type="button" class="prow" style="border-color:' + line + '" data-act="pay" data-n="' + n + '" aria-label="ช่อง ' + n + '"><span class="n">' + n + '</span><span class="pl">' + plateHtml(p) + '</span><span class="r">' + r1 + r2 + '</span></button>';
+}
+function payView() {
+  const atNow = ui.y === NOW.y && ui.m === NOW.m;
+  const unpaid = [], paid = [];
+  let total = 0;
+  for (let n = 1; n <= CONFIG.slots; n++) {
+    if (!data.plates[n - 1]) continue;
+    const rec = data.pays[key(n, ui.y, ui.m)];
+    if (rec) { paid.push([n, rec]); total += rec.a; } else unpaid.push(n);
+  }
+  const occ = paid.length + unpaid.length;
+  const pct = occ ? Math.round((paid.length * 100) / occ) : 0;
+  let h = '<div class="head"><h1>การจ่ายเงิน</h1><span class="meta" style="font-size:13px">รับแล้ว <b style="color:var(--green)">฿' + fmt(total) + '</b></span></div>' +
+    '<div class="stepper"><button type="button" data-act="prev" aria-label="เดือนก่อน">‹</button><div>' + label(ui.y, ui.m) + '</div><button type="button" data-act="next" aria-label="เดือนถัดไป"' + (atNow ? ' disabled' : '') + '>›</button></div>';
+  if (!occ) {
+    return h + '<div class="empty">ยังไม่มีรถในลาน<br>ไปที่แท็บ "ผังลาน" แล้วแตะช่องเพื่อใส่ทะเบียนก่อน</div>';
+  }
+  h += '<div class="prog"><div class="t"><span>จ่ายแล้ว <b class="k" style="color:var(--green)">' + paid.length + '</b> จาก ' + occ + ' ช่อง</span><span style="color:var(--amber)">ค้าง ' + unpaid.length + '</span></div><div class="bar"><div style="width:' + pct + '%"></div></div></div>';
+  h += '<div class="list">';
+  if (unpaid.length) h += '<div class="sec" style="color:var(--amber)">ยังไม่จ่าย · แตะเพื่อลงจ่าย</div>' + unpaid.map((n) => payRow(n, false)).join('');
+  else h += '<div class="note" style="color:var(--green);background:rgba(90,211,154,.1)">เดือนนี้จ่ายครบทุกช่องแล้ว</div>';
+  if (paid.length) h += '<div class="sec" style="color:var(--green);padding-top:10px">จ่ายแล้ว</div>' + paid.map((x) => payRow(x[0], true, x[1])).join('');
+  return h + '</div>';
+}
+
+/* ---------- แผ่นล่าง ---------- */
+const host = document.getElementById('sheetHost');
+const closeSheet = () => { host.innerHTML = ''; };
+const openSheet = (inner) => { host.innerHTML = '<div class="ov" data-act="ov"><div class="sheet" role="dialog" aria-modal="true"><div class="grab"></div>' + inner + '</div></div>'; };
+
+function editSheet(n) {
+  const p = data.plates[n - 1] || '';
+  const ci = data.info[n] || {};
+  openSheet(
+    '<div class="sh"><h2>ช่อง <span>' + n + '</span></h2><button type="button" class="x" data-act="close">ปิด</button></div>' +
+    '<div class="fld"><label for="fPlate">ทะเบียนรถ</label><input id="fPlate" class="in lg" type="text" autocomplete="off" value="' + esc(p) + '" placeholder="เช่น 1กก1234"></div>' +
+    '<div class="g2"><div class="fld"><label for="fName">ชื่อเจ้าของรถ</label><input id="fName" class="in" type="text" autocomplete="off" value="' + esc(ci.name) + '" placeholder="ชื่อ"></div>' +
+    '<div class="fld"><label for="fPhone">เบอร์ติดต่อ</label><input id="fPhone" class="in k" type="tel" inputmode="tel" autocomplete="off" value="' + esc(ci.phone) + '" placeholder="08x-xxx-xxxx"></div></div>' +
+    '<div class="fld"><label for="fNote">หมายเหตุ (เช่น ยี่ห้อ สีรถ ห้องที่พัก)</label><input id="fNote" class="in" type="text" autocomplete="off" value="' + esc(ci.note) + '" placeholder="พิมพ์ได้อิสระ"></div>' +
+    '<div class="warnbox" id="fWarn" hidden>เปลี่ยนทะเบียนแล้ว ประวัติจ่ายเงินของช่องนี้จะถูกล้างทั้งหมด ข้อมูลติดต่อเดิมก็ถูกล้างด้วยถ้าไม่ได้แก้</div>' +
+    '<a class="call" id="fCall" href="tel:" hidden></a>' +
+    '<button type="button" class="pri" data-act="saveEdit" data-n="' + n + '">บันทึกช่อง ' + n + '</button>' +
+    (p ? '<button type="button" class="sec2" data-act="clearSlot" data-n="' + n + '">รถออกแล้ว ล้างช่องนี้ (ล้างประวัติจ่ายเงินและข้อมูลติดต่อ)</button>' : '')
+  );
+  const $ = (id) => document.getElementById(id);
+  const sync = () => {
+    $('fWarn').hidden = !(p && $('fPlate').value.trim() !== p);
+    const ph = $('fPhone').value.trim();
+    $('fCall').hidden = !ph;
+    $('fCall').href = 'tel:' + ph.replace(/[^0-9+]/g, '');
+    $('fCall').textContent = 'โทร ' + ph;
+  };
+  $('fPlate').addEventListener('input', sync);
+  $('fPhone').addEventListener('input', sync);
+  sync();
+}
+function saveEdit(n, clear) {
+  const $ = (id) => document.getElementById(id);
+  const old = data.plates[n - 1] || '';
+  const val = clear ? '' : $('fPlate').value.trim();
+  const name = clear ? '' : $('fName').value.trim();
+  const phone = clear ? '' : $('fPhone').value.trim();
+  const note = clear ? '' : $('fNote').value.trim();
+  const changed = val !== old;
+  if (changed) Object.keys(data.pays).forEach((k) => { if (k.indexOf(n + '-') === 0) delete data.pays[k]; });
+  const oi = data.info[n] || {};
+  const same = name === (oi.name || '') && phone === (oi.phone || '') && note === (oi.note || '');
+  if (!val || (changed && old && same) || (!name && !phone && !note)) delete data.info[n];
+  else data.info[n] = { name, phone, note };
+  data.plates[n - 1] = val;
+  persist(); closeSheet(); render();
+}
+
+function paySheet(n, rec) {
+  const p = data.plates[n - 1];
+  const ci = data.info[n] || {};
+  let prev = '';
+  for (let k = 1; k <= 12 && !prev; k++) { const t = shift(ui.y, ui.m, -k); const r = data.pays[key(n, t.y, t.m)]; if (r) prev = String(r.a); }
+  const atNow = ui.y === NOW.y && ui.m === NOW.m;
+  const day = rec ? String(rec.d) : atNow ? String(NOW.d) : '';
+  const amt = rec ? String(rec.a) : prev;
+  let hist = '';
+  for (let k = 0; k < 6; k++) {
+    const t = shift(ui.y, ui.m, -k);
+    const r = data.pays[key(n, t.y, t.m)];
+    hist += '<div class="hr"><span>' + label(t.y, t.m) + '</span><span style="color:' + (r ? 'var(--green)' : 'var(--dim)') + '">' + (r ? 'วันที่ ' + r.d + ' · ฿' + fmt(r.a) : 'ไม่มีบันทึก') + '</span></div>';
+  }
+  const phoneDigits = esc((ci.phone || '').replace(/[^0-9+]/g, ''));
+  openSheet(
+    '<div class="sh"><div style="display:flex;align-items:center;gap:10px"><h2>ช่อง <span>' + n + '</span></h2>' + plateHtml(p) + '</div><button type="button" class="x" data-act="close">ปิด</button></div>' +
+    ((ci.name || ci.phone) ? '<div class="contact"><span>' + esc(ci.name) + '</span>' + (ci.phone ? '<a href="tel:' + phoneDigits + '">' + esc(ci.phone) + '</a>' : '') + '</div>' : '') +
+    '<div style="font-size:13px;color:var(--mute)">ค่าจอดของเดือน <b class="k" style="color:var(--amber);font-weight:500;font-size:15px">' + label(ui.y, ui.m) + '</b></div>' +
+    '<div class="g2b"><div class="fld"><label for="pDay">จ่ายวันที่</label><input id="pDay" class="in md" type="text" inputmode="numeric" autocomplete="off" value="' + esc(day) + '" placeholder="วัน"></div>' +
+    '<div class="fld"><label for="pAmt">จำนวนเงิน (บาท)</label><input id="pAmt" class="in md" type="text" inputmode="numeric" autocomplete="off" value="' + esc(amt) + '" placeholder="เช่น 1500"></div></div>' +
+    '<div class="err" id="pErr" hidden></div>' +
+    '<button type="button" class="pri" data-act="savePay" data-n="' + n + '">บันทึกการจ่าย</button>' +
+    '<div class="hist"><div class="ht">ประวัติ 6 เดือนล่าสุดของช่องนี้</div>' + hist + '</div>' +
+    (rec ? '<button type="button" class="sec2" data-act="cancelPay" data-n="' + n + '">ยกเลิกการจ่ายของเดือนนี้</button>' : '')
+  );
+}
+function savePay(n) {
+  const d = parseInt(document.getElementById('pDay').value, 10);
+  const a = parseInt(document.getElementById('pAmt').value.replace(/[^0-9]/g, ''), 10);
+  const err = document.getElementById('pErr');
+  if (!(d >= 1 && d <= 31)) { err.textContent = 'ใส่วันที่ 1 ถึง 31'; err.hidden = false; return; }
+  if (!(a > 0)) { err.textContent = 'ใส่จำนวนเงินที่จ่าย'; err.hidden = false; return; }
+  data.pays[key(n, ui.y, ui.m)] = { d, a };
+  persist(); closeSheet(); render();
+}
+
+/* ---------- วาดหน้า + จัดการการกด ---------- */
+function render() {
+  const v = document.getElementById('view');
+  const keep = v.scrollTop;
+  v.innerHTML = ui.tab === 'lot' ? lotView() : payView();
+  v.scrollTop = keep;
+  document.getElementById('tabLot').classList.toggle('on', ui.tab === 'lot');
+  document.getElementById('tabPay').classList.toggle('on', ui.tab === 'pay');
+}
+document.getElementById('app').addEventListener('click', (e) => {
+  const t = e.target.closest('[data-act],[data-tab]');
+  if (!t) return;
+  if (t.dataset.tab) { ui.tab = t.dataset.tab; closeSheet(); render(); document.getElementById('view').scrollTop = 0; return; }
+  const n = parseInt(t.dataset.n, 10);
+  switch (t.dataset.act) {
+    case 'edit': if (!isBlocked(n)) editSheet(n); break;
+    case 'pay': paySheet(n, data.pays[key(n, ui.y, ui.m)]); break;
+    case 'prev': { const s = shift(ui.y, ui.m, -1); ui.y = s.y; ui.m = s.m; render(); break; }
+    case 'next': { if (ui.y === NOW.y && ui.m === NOW.m) break; const s = shift(ui.y, ui.m, 1); ui.y = s.y; ui.m = s.m; render(); break; }
+    case 'close': closeSheet(); break;
+    case 'ov': if (e.target === t) closeSheet(); break;
+    case 'saveEdit': saveEdit(n, false); break;
+    case 'clearSlot': saveEdit(n, true); break;
+    case 'savePay': savePay(n); break;
+    case 'cancelPay': delete data.pays[key(n, ui.y, ui.m)]; persist(); closeSheet(); render(); break;
+  }
+});
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeSheet(); });
+render();
+</script>
+</body>
+</html>
